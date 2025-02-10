@@ -1,26 +1,19 @@
--- Combat.lua
 local Combat = {}
 
-function Combat.Initialize(section, CreateToggle, CreateSlider)
-    CreateToggle("GodMode", section, function(enabled)
-        -- Implement god mode logic here
-    end)
-    
-    CreateToggle("KillAura", section, function(enabled)
-        -- Implement kill aura logic here
-    end)
-    
-    CreateToggle("AutoParry", section, function(enabled)
-        -- Implement auto parry logic here
-    end)
-    
-    CreateToggle("Reach", section, function(enabled)
-        -- Implement reach logic here
-    end)
-    
-    CreateToggle("Aimbot", section, function(enabled)
-        -- Implement aimbot logic here
-    end)
+local function GodMode(enabled)
+    -- ... (código de la función GodMode)
 end
+
+local function ToggleAimbot(enabled)
+    -- ... (código de la función ToggleAimbot)
+end
+
+Combat.Features = {
+    {name = "GodMode", callback = GodMode},
+    {name = "KillAura", callback = function() end},
+    {name = "AutoParry", callback = function() end},
+    {name = "Reach", callback = function() end},
+    {name = "Aimbot", callback = ToggleAimbot}
+}
 
 return Combat
