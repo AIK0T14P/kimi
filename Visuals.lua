@@ -1,22 +1,22 @@
--- Visuals.lua
 local Visuals = {}
 
-function Visuals.Initialize(section, CreateToggle, CreateSlider)
-    CreateToggle("ESP", section, function(enabled)
-        -- Implement ESP logic here
-    end)
-    
-    CreateToggle("Chams", section, function(enabled)
-        -- Implement chams logic here
-    end)
-    
-    CreateToggle("Tracers", section, function(enabled)
-        -- Implement tracers logic here
-    end)
-    
-    CreateToggle("Fullbright", section, function(enabled)
-        -- Implement fullbright logic here
-    end)
+local function ESP(enabled)
+    -- ... (código de la función ESP)
 end
+
+local function Tracers(enabled)
+    -- ... (código de la función Tracers)
+end
+
+local function Fullbright(enabled)
+    -- ... (código de la función Fullbright)
+end
+
+Visuals.Features = {
+    {name = "ESP", callback = ESP},
+    {name = "Chams", callback = function() end},
+    {name = "Tracers", callback = Tracers},
+    {name = "Fullbright", callback = Fullbright}
+}
 
 return Visuals
