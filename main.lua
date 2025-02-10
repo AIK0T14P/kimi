@@ -55,7 +55,8 @@ local Languages = {
             DisableEffects = "Disable Effects",
             ReduceTextures = "Reduce Textures",
             DisableLighting = "Disable Lighting"
-        }
+        },
+        loading = "Loading..."
     },
     ["Español"] = {
         categories = {
@@ -97,12 +98,53 @@ local Languages = {
             DisableEffects = "Desactivar Efectos",
             ReduceTextures = "Reducir Texturas",
             DisableLighting = "Desactivar Iluminación"
-        }
+        },
+        loading = "Cargando..."
     }
 }
 
 local CurrentLanguage = "English"
 local Texts = Languages[CurrentLanguage]
+
+-- Crear pantalla de carga
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "LoadingGui"
+LoadingGui.ResetOnSpawn = false
+LoadingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+LoadingGui.Parent = game.CoreGui
+
+local LoadingFrame = Instance.new("Frame")
+LoadingFrame.Size = UDim2.new(1, 0, 1, 0)
+LoadingFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+LoadingFrame.Parent = LoadingGui
+
+local LoadingBar = Instance.new("Frame")
+LoadingBar.Size = UDim2.new(0.4, 0, 0.02, 0)
+LoadingBar.Position = UDim2.new(0.3, 0, 0.5, 0)
+LoadingBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+LoadingBar.BorderSizePixel = 0
+LoadingBar.Parent = LoadingFrame
+
+local LoadingFill = Instance.new("Frame")
+LoadingFill.Size = UDim2.new(0, 0, 1, 0)
+LoadingFill.BackgroundColor3 = Color3.fromRGB(147, 112, 219)
+LoadingFill.BorderSizePixel = 0
+LoadingFill.Parent = LoadingBar
+
+local LoadingText = Instance.new("TextLabel")
+LoadingText.Size = UDim2.new(0, 200, 0, 30)
+LoadingText.Position = UDim2.new(0.5, -100, 0.45, -15)
+LoadingText.BackgroundTransparency = 1
+LoadingText.Font = Enum.Font.GothamBold
+LoadingText.Text = Texts.loading
+LoadingText.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadingText.TextSize = 18
+LoadingText.Parent = LoadingFrame
+
+-- Animación de carga
+local loadingTween = TweenService:Create(LoadingFill, TweenInfo.new(3), {Size = UDim2.new(1, 0, 1, 0)})
+loadingTween:Play()
+loadingTween.Completed:Wait()
 
 -- GUI Principal
 local ScreenGui = Instance.new("ScreenGui")
@@ -393,26 +435,414 @@ local function CreateSlider(name, section, callback, min, max, default)
     end
 end
 
--- Load other modules
-local Movement = require(script.Parent.Movement)
-local Combat = require(script.Parent.Combat)
-local Visuals = require(script.Parent.Visuals)
-local Player = require(script.Parent.Player)
-local World = require(script.Parent.World)
-local Optimization = require(script.Parent.Optimization)
-local Misc = require(script.Parent.Misc)
-local Settings = require(script.Parent.Settings)
+-- Funciones de habilidades mejoradas
+local function ToggleFly(enabled)
+    if enabled then
+        local BG = Instance.new("BodyGyro", HumanoidRootPart)
+        BG.P = 9e4
+        BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        BG.CFrame = HumanoidRootPart.CFrame
+        
+        local BV = Instance.new("BodyVelocity", HumanoidRootPart)
+        BV.Velocity = Vector3.new(0, 0.1, 0)
+        BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        
+        RunService:BindToRenderStep("Fly", 100, function()
+            if not enabled then return end
+            
+            BG.CFrame = CFrame.new(HumanoidRootPart.Position, HumanoidRootPart.Position + Camera.CFrame.LookVector)
+            
+            local moveDirection = Vector3.new(
+                UserInputService:IsKeyDown(Enum.KeyCode.D) and 1 or (UserInputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0),
+                (UserInputService:IsKeyDown(Enum.KeyCode.Space) and 1 or 0) - (UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and 1 or 0),
+                UserInputService:IsKeyDown(Enum.KeyCode.S) and 1 or (UserInputService:IsKeyDown(Enum.KeyCode.W) and -1 or 0)
+            )
+            
+            local cameraCFrame = Camera.CFrame
+            local lookVector = cameraCFrame.LookVector
+            local rightVector = cameraCFrame.RightVector
+            
+            local velocity = (rightVector * moveDirection.X + cameraCFrame.UpVector * moveDirection.Y + lookVector * moveDirection.Z) * 50
+            
+            if velocity.Magnitude > 0 then
+                BV.Velocity = velocity
+            else
+                BV.Velocity = Vector3.new(0, 0.1, 0)
+            end
+        end)
+    else
+        RunService:UnbindFromRenderStep("Fly")
+        for _, v in pairs(HumanoidRootPart:GetChildren()) do
+            if v:IsA("BodyGyro") or v:IsA("BodyVelocity") then
+                v:Destroy()
+            end
+        end
+    end
+end
+
+local function ToggleSpeed(value)
+    Humanoid.WalkSpeed = value
+end
+
+local function ToggleSuperJump(value)
+    Humanoid.JumpPower = value
+    Humanoid.JumpHeight = 7.2
+end
+
+local function Invisibility(enabled)
+    if enabled then
+        local clone = Character:Clone()
+        clone.Parent = workspace
+        
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("Part") then
+                part.Transparency = 1
+            end
+        end
+        
+        Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    else
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("Part") then
+                part.Transparency = 0
+            end
+        end
+        
+        Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        
+        local clone = workspace:FindFirstChild(Character.Name)
+        if clone then clone:Destroy() end
+    end
+end
+
+local function GodMode(enabled)
+    if enabled then
+        local clone = Character:Clone()
+        clone.Parent = workspace
+        Character.Parent = game.ReplicatedStorage
+        
+        local function onDied()
+            Character.Parent = workspace
+            local clone = workspace:FindFirstChild(Character.Name)
+            if clone then clone:Destroy() end
+        end
+        
+        clone.Humanoid.Died:Connect(onDied)
+    end
+end
+
+local function InfiniteJump(enabled)
+    local connection
+    if enabled then
+        connection = UserInputService.JumpRequest:Connect(function()
+            Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end)
+    else
+        if connection then
+            connection:Disconnect()
+        end
+    end
+end
+
+local function NoClip(enabled)
+    local connection
+    if enabled then
+        connection = RunService.Stepped:Connect(function()
+            for _, part in pairs(Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end)
+    else
+        if connection then
+            connection:Disconnect()
+        end
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+local function ESP(enabled)
+    if enabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "ESPHighlight"
+                highlight.Parent = player.Character
+                highlight.FillColor = Color3.fromRGB(147, 112, 219)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            end
+        end
+        
+        Players.PlayerAdded:Connect(function(player)
+            player.CharacterAdded:Connect(function(character)
+                if enabled then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.Parent = character
+                    highlight.FillColor = Color3.fromRGB(147, 112, 219)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                end
+            end)
+        end)
+    else
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local highlight = player.Character:FindFirstChild("ESPHighlight")
+                if highlight then highlight:Destroy() end
+            end
+        end
+    end
+end
+
+local function Fullbright(enabled)
+    if enabled then
+        game.Lighting.Brightness = 2
+        game.Lighting.ClockTime = 14
+        game.Lighting.FogEnd = 100000
+        game.Lighting.GlobalShadows = false
+        game.Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    else
+        game.Lighting.Brightness = 1
+        game.Lighting.ClockTime = 12
+        game.Lighting.FogEnd = 10000
+        game.Lighting.GlobalShadows = true
+        game.Lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+    end
+end
+
+local function Tracers(enabled)
+    local tracers = {}
+    
+    local function createTracer(player)
+        if player == LocalPlayer then return end
+        
+        local tracer = Drawing.new("Line")
+        tracer.Visible = false
+        tracer.Color = Color3.new(1, 1, 1)
+        tracer.Thickness = 1
+        tracer.Transparency = 1
+        tracers[player] = tracer
+        
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            if not enabled or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+                tracer.Visible = false
+                return
+            end
+            
+            local vector, onScreen = Camera:WorldToScreenPoint(player.Character.HumanoidRootPart.Position)
+            if onScreen then
+                tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                tracer.To = Vector2.new(vector.X, vector.Y)
+                tracer.Visible = true
+            else
+                tracer.Visible = false
+            end
+        end)
+    end
+    
+    if enabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            createTracer(player)
+        end
+        
+        Players.PlayerAdded:Connect(createTracer)
+        Players.PlayerRemoving:Connect(function(player)
+            if tracers[player] then
+                tracers[player]:Remove()
+                tracers[player] = nil
+            end
+        end)
+    else
+        for _, tracer in pairs(tracers) do
+            tracer:Remove()
+        end
+        tracers = {}
+    end
+end
+
+local function RemoveFog(enabled)
+    if enabled then
+        game.Lighting.FogStart = 100000
+        game.Lighting.FogEnd = 100000
+    else
+        game.Lighting.FogStart = 0
+        game.Lighting.FogEnd = 100000
+    end
+end
+
+local function DayNight(enabled)
+    local connection
+    if enabled then
+        connection = RunService.Heartbeat:Connect(function()
+            local currentTime = tick() % 24
+            game.Lighting.ClockTime = currentTime
+        end)
+    else
+        if connection then
+            connection:Disconnect()
+        end
+        game.Lighting.ClockTime = 12
+    end
+end
+
+local function RemoveTextures(enabled)
+    local originalMaterials = {}
+    if enabled then
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") and v.Material ~= Enum.Material.Air then
+                originalMaterials[v] = v.Material
+                v.Material = Enum.Material.SmoothPlastic
+            end
+        end
+    else
+        for part, material in pairs(originalMaterials) do
+            if part then
+                part.Material = material
+            end
+        end
+        originalMaterials = {}
+    end
+end
+
+local function ChatSpam(enabled)
+    local connection
+    if enabled then
+        connection = RunService.Heartbeat:Connect(function()
+            game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("Spam message", "All")
+            wait(1)
+        end)
+    else
+        if connection then
+            connection:Disconnect()
+        end
+    end
+end
+
+local function AutoFarm(enabled)
+    if enabled then
+        print("Auto Farm enabled. Implement game-specific farming logic here.")
+    else
+        print("Auto Farm disabled.")
+    end
+end
+
+local function ServerHop()
+    local HttpService = game:GetService("HttpService")
+    local TeleportService = game:GetService("TeleportService")
+    local PlaceId = game.PlaceId
+    
+    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+    for _, server in pairs(servers.data) do
+        if server.playing < server.maxPlayers then
+            TeleportService:TeleportToPlaceInstance(PlaceId, server.id)
+            break
+        end
+    end
+end
+
+-- Aimbot function
+local AimbotEnabled = false
+local AimbotTarget = nil
+local AimbotSensitivity = 0.5
+local AimbotSmoothing = 0.2
+local AimbotFOV = 400
+
+local function IsPlayerVisible(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        local ray = Ray.new(
+            Camera.CFrame.Position,
+            (player.Character.Head.Position - Camera.CFrame.Position).Unit * 1000
+        )
+        local ignoreList = {LocalPlayer.Character, Camera}
+        local hit, position = workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
+        
+        if hit and hit:IsDescendantOf(player.Character) then
+            return true
+        end
+    end
+    return false
+end
+
+local function GetClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local maxDistance = AimbotFOV
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and 
+           player.Character and 
+           player.Character:FindFirstChild("HumanoidRootPart") and
+           player.Character:FindFirstChild("Humanoid") and
+           player.Character.Humanoid.Health > 0 then
+            
+            local screenPos, onScreen = Camera:WorldToScreenPoint(player.Character.HumanoidRootPart.Position)
+            if onScreen then
+                local distanceFromCenter = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+                if distanceFromCenter < maxDistance and IsPlayerVisible(player) then
+                    closestPlayer = player
+                    maxDistance = distanceFromCenter
+                end
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+local function PredictTargetPosition(target)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        local targetVelocity = target.Character.HumanoidRootPart.Velocity
+        local targetPosition = target.Character.HumanoidRootPart.Position
+        local timeToHit = (targetPosition - Camera.CFrame.Position).Magnitude / 1000 -- Assuming projectile speed of 1000
+        return targetPosition + targetVelocity * timeToHit
+    end
+    return nil
+end
+
+local function AimAt(target)
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local predictedPos = PredictTargetPosition(target)
+        if predictedPos then
+            local targetPos = Camera:WorldToScreenPoint(predictedPos)
+            local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            local aimDelta = Vector2.new(targetPos.X - mousePos.X, targetPos.Y - mousePos.Y)
+            aimDelta = aimDelta * AimbotSensitivity
+            mousemoverel(aimDelta.X * AimbotSmoothing, aimAimbotSensitivity
+            mousemoverel(aimDelta.X * AimbotSmoothing, aimDelta.Y * AimbotSmoothing)
+        end
+    end
+end
+
+local function ToggleAimbot(enabled)
+    AimbotEnabled = enabled
+    if enabled then
+        RunService:BindToRenderStep("Aimbot", 100, function()
+            AimbotTarget = GetClosestPlayer()
+            if AimbotTarget and IsPlayerVisible(AimbotTarget) then
+                AimAt(AimbotTarget)
+            end
+        end)
+    else
+        RunService:UnbindFromRenderStep("Aimbot")
+    end
+end
 
 -- Categorías actualizadas
 local Categories = {
-    {name = "Movement", icon = "rbxassetid://3926307971", module = Movement},
-    {name = "Combat", icon = "rbxassetid://3926307971", module = Combat},
-    {name = "Visuals", icon = "rbxassetid://3926307971", module = Visuals},
-    {name = "Player", icon = "rbxassetid://3926307971", module = Player},
-    {name = "World", icon = "rbxassetid://3926307971", module = World},
-    {name = "Optimization", icon = "rbxassetid://3926307971", module = Optimization},
-    {name = "Misc", icon = "rbxassetid://3926307971", module = Misc},
-    {name = "Settings", icon = "rbxassetid://3926307971", module = Settings}
+    {name = "Movement", icon = "rbxassetid://3926307971"},
+    {name = "Combat", icon = "rbxassetid://3926307971"},
+    {name = "Visuals", icon = "rbxassetid://3926307971"},
+    {name = "Player", icon = "rbxassetid://3926307971"},
+    {name = "World", icon = "rbxassetid://3926307971"},
+    {name = "Optimization", icon = "rbxassetid://3926307971"},
+    {name = "Misc", icon = "rbxassetid://3926307971"},
+    {name = "Settings", icon = "rbxassetid://3926307971"}
 }
 
 -- Crear categorías y secciones
@@ -422,9 +852,169 @@ local ActiveCategory = nil
 for i, category in ipairs(Categories) do
     local button = CreateCategory(category.name, category.icon, (i-1) * 50)
     Sections[category.name] = CreateSection(category.name)
-    
-    -- Initialize category features
-    category.module.Initialize(Sections[category.name], CreateToggle, CreateSlider)
+end
+
+-- Características actualizadas
+local MovementFeatures = {
+    {name = "Fly", callback = ToggleFly},
+    {name = "Speed", callback = ToggleSpeed, slider = true, min = 16, max = 200, default = 16},
+    {name = "SuperJump", callback = ToggleSuperJump, slider = true, min = 50, max = 500, default = 50},
+    {name = "InfiniteJump", callback = InfiniteJump},
+    {name = "NoClip", callback = NoClip}
+}
+
+local CombatFeatures = {
+    {name = "GodMode", callback = GodMode},
+    {name = "KillAura", callback = function() end},
+    {name = "AutoParry", callback = function() end},
+    {name = "Reach", callback = function() end},
+    {name = "Aimbot", callback = ToggleAimbot}
+}
+
+local VisualFeatures = {
+    {name = "ESP", callback = ESP},
+    {name = "Chams", callback = function() end},
+    {name = "Tracers", callback = Tracers},
+    {name = "Fullbright", callback = Fullbright}
+}
+
+local PlayerFeatures = {
+    {name = "Invisibility", callback = Invisibility},
+    {name = "AntiAFK", callback = function() end},
+    {name = "AutoReset", callback = function() end}
+}
+
+local WorldFeatures = {
+    {name = "RemoveFog", callback = RemoveFog},
+    {name = "DayNight", callback = DayNight},
+    {name = "RemoveTextures", callback = RemoveTextures}
+}
+
+local OptimizationFeatures = {
+    {name = "LowGraphics", callback = function(enabled)
+        if enabled then
+            settings().Rendering.QualityLevel = 1
+            game:GetService("Lighting").GlobalShadows = false
+            game:GetService("Lighting").Technology = Enum.Technology.Compatibility
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                    v.Enabled = false
+                end
+            end
+        else
+            settings().Rendering.QualityLevel = 7
+            game:GetService("Lighting").GlobalShadows = true
+            game:GetService("Lighting").Technology = Enum.Technology.Future
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                    v.Enabled = true
+                end
+            end
+        end
+    end},
+    {name = "DisableEffects", callback = function(enabled)
+        if enabled then
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") then
+                    v.Enabled = false
+                end
+            end
+        else
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("ParticleEmitter") then
+                    v.Enabled = true
+                end
+            end
+        end
+    end},
+    {name = "ReduceTextures", callback = RemoveTextures},
+    {name = "DisableLighting", callback = function(enabled)
+        if enabled then
+            game:GetService("Lighting").GlobalShadows = false
+            game:GetService("Lighting").ShadowSoftness = 0
+            game:GetService("Lighting").Technology = Enum.Technology.Compatibility
+        else
+            game:GetService("Lighting").GlobalShadows = true
+            game:GetService("Lighting").ShadowSoftness = 0.5
+            game:GetService("Lighting").Technology = Enum.Technology.Future
+        end
+    end}
+}
+
+local MiscFeatures = {
+    {name = "ChatSpam", callback = ChatSpam},
+    {name = "AutoFarm", callback = AutoFarm},
+    {name = "ServerHop", callback = ServerHop}
+}
+
+local SettingsFeatures = {
+    {name = "Language", callback = function(enabled)
+        if enabled then
+            CurrentLanguage = "Español"
+        else
+            CurrentLanguage = "English"
+        end
+        Texts = Languages[CurrentLanguage]
+        
+        -- Actualizar textos
+        for name, section in pairs(Sections) do
+            local categoryButton = Sidebar:FindFirstChild(name.."Category")
+            if categoryButton then
+                categoryButton.Text = Texts.categories[name]
+            end
+            
+            for _, child in pairs(section:GetChildren()) do
+                if child:IsA("Frame") then
+                    local label = child:FindFirstChild("TextLabel")
+                    if label and label.Text then
+                        for featureName, translatedName in pairs(Texts.features) do
+                            if label.Text == Languages[CurrentLanguage == "English" and "Español" or "English"].features[featureName] then
+                                label.Text = translatedName
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end}
+}
+
+-- Crear toggles y sliders para cada característica
+for _, feature in ipairs(MovementFeatures) do
+    if feature.slider then
+        CreateSlider(feature.name, Sections.Movement, feature.callback, feature.min, feature.max, feature.default)
+    else
+        CreateToggle(feature.name, Sections.Movement, feature.callback)
+    end
+end
+
+for _, feature in ipairs(CombatFeatures) do
+    CreateToggle(feature.name, Sections.Combat, feature.callback)
+end
+
+for _, feature in ipairs(VisualFeatures) do
+    CreateToggle(feature.name, Sections.Visuals, feature.callback)
+end
+
+for _, feature in ipairs(PlayerFeatures) do
+    CreateToggle(feature.name, Sections.Player, feature.callback)
+end
+
+for _, feature in ipairs(WorldFeatures) do
+    CreateToggle(feature.name, Sections.World, feature.callback)
+end
+
+for _, feature in ipairs(OptimizationFeatures) do
+    CreateToggle(feature.name, Sections.Optimization, feature.callback)
+end
+
+for _, feature in ipairs(MiscFeatures) do
+    CreateToggle(feature.name, Sections.Misc, feature.callback)
+end
+
+for _, feature in ipairs(SettingsFeatures) do
+    CreateToggle(feature.name, Sections.Settings, feature.callback)
 end
 
 -- Manejar la visibilidad de las secciones y mantener el color morado
@@ -466,8 +1056,12 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 end)
 
+-- Eliminar la GUI de carga
+LoadingGui:Destroy()
+
 -- Mostrar la primera sección por defecto
 ShowSection("Movement")
 
 -- Mensaje de confirmación
 print("Script mejorado cargado correctamente. Use el botón en la izquierda para mostrar/ocultar el menú.")
+
