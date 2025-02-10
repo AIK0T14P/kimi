@@ -13,16 +13,6 @@ local Humanoid = Character:WaitForChild("Humanoid")
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 local Camera = workspace.CurrentCamera
 
--- Importar módulos de categorías
-local Movement = require(script.Parent.Movement)
-local Combat = require(script.Parent.Combat)
-local Visuals = require(script.Parent.Visuals)
-local Player = require(script.Parent.Player)
-local World = require(script.Parent.World)
-local Optimization = require(script.Parent.Optimization)
-local Misc = require(script.Parent.Misc)
-local Settings = require(script.Parent.Settings)
-
 -- Sistema de idiomas
 local Languages = {
     ["English"] = {
@@ -37,6 +27,11 @@ local Languages = {
             Settings = "Settings"
         },
         features = {
+            Fly = "Fly",
+            Speed = "Speed",
+            SuperJump = "Super Jump",
+            InfiniteJump = "Infinite Jump",
+            NoClip = "No Clip",
             -- ... (resto de las traducciones)
         },
         loading = "Loading..."
@@ -53,6 +48,11 @@ local Languages = {
             Settings = "Ajustes"
         },
         features = {
+            Fly = "Volar",
+            Speed = "Velocidad",
+            SuperJump = "Super Salto",
+            InfiniteJump = "Salto Infinito",
+            NoClip = "No Clip",
             -- ... (resto de las traducciones)
         },
         loading = "Cargando..."
@@ -69,45 +69,76 @@ LoadingGui.ResetOnSpawn = false
 LoadingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 LoadingGui.Parent = game.CoreGui
 
--- ... (resto del código de la interfaz)
+local LoadingFrame = Instance.new("Frame")
+LoadingFrame.Size = UDim2.new(1, 0, 1, 0)
+LoadingFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+LoadingFrame.Parent = LoadingGui
 
--- Categorías actualizadas
-local Categories = {
-    {name = "Movement", icon = "rbxassetid://3926307971", module = Movement},
-    {name = "Combat", icon = "rbxassetid://3926307971", module = Combat},
-    {name = "Visuals", icon = "rbxassetid://3926307971", module = Visuals},
-    {name = "Player", icon = "rbxassetid://3926307971", module = Player},
-    {name = "World", icon = "rbxassetid://3926307971", module = World},
-    {name = "Optimization", icon = "rbxassetid://3926307971", module = Optimization},
-    {name = "Misc", icon = "rbxassetid://3926307971", module = Misc},
-    {name = "Settings", icon = "rbxassetid://3926307971", module = Settings}
-}
+local LoadingText = Instance.new("TextLabel")
+LoadingText.Size = UDim2.new(1, 0, 1, 0)
+LoadingText.BackgroundTransparency = 1
+LoadingText.Font = Enum.Font.GothamBold
+LoadingText.Text = Texts.loading
+LoadingText.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadingText.TextSize = 24
+LoadingText.Parent = LoadingFrame
 
--- Crear categorías y secciones
-local Sections = {}
-local ActiveCategory = nil
+-- GUI Principal
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KimikoHUDBeta"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = game.CoreGui
 
-for i, category in ipairs(Categories) do
-    local button = CreateCategory(category.name, category.icon, (i-1) * 50)
-    Sections[category.name] = CreateSection(category.name)
-    
-    -- Crear toggles y sliders para cada característica
-    for _, feature in ipairs(category.module.Features) do
-        if feature.slider then
-            CreateSlider(feature.name, Sections[category.name], feature.callback, feature.min, feature.max, feature.default)
-        else
-            CreateToggle(feature.name, Sections[category.name], feature.callback)
-        end
-    end
+-- Botón para mostrar/ocultar
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Position = UDim2.new(0, 10, 0.5, -25)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(147, 112, 219)
+ToggleButton.Text = "K"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 24
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0)
+ToggleCorner.Parent = ToggleButton
+
+-- Frame Principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 400, 0, 300)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+-- Título "Kimiko HUD Beta"
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Position = UDim2.new(0, 0, 0, 10)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Kimiko HUD Beta"
+Title.TextColor3 = Color3.fromRGB(147, 112, 219)
+Title.TextSize = 24
+Title.Parent = MainFrame
+
+-- Función para mostrar/ocultar el MainFrame
+local function ToggleMainFrame()
+    MainFrame.Visible = not MainFrame.Visible
 end
 
--- ... (resto del código de la interfaz y manejo de eventos)
+ToggleButton.MouseButton1Click:Connect(ToggleMainFrame)
 
--- Eliminar la GUI de carga
-LoadingGui:Destroy()
-
--- Mostrar la primera sección por defecto
-ShowSection("Movement")
-
--- Mensaje de confirmación
-print("Script mejorado cargado correctamente. Use el botón en la izquierda para mostrar/ocultar el menú.")
+-- Eliminar la GUI de carga después de 2 segundos
+task.delay(2, function()
+    LoadingGui:Destroy()
+    print("Kimiko HUD Beta cargado. Haz clic en el botón 'K' para abrir/cerrar el menú.")
+end)
